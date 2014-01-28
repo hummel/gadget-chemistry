@@ -128,10 +128,10 @@ HDF5LIB = -L$(TACC_HDF5_LIB) -lhdf5
 endif
 
 ifeq ($(SYSTYPE),"r900")
-CC        = /home/r900-1/pawlik/sw/mpich2/bin/mpicc
-FC        = /home/r900-1/pawlik/sw/mpich2/bin/mpif90 -nofor-main
+CC        = gcc -fopenmp
+FC        = gfortran -fopenmp
 #OPTIMIZE  = -Wall -g -O3
-OPTIMIZE  = -Wall -g3
+OPTIMIZE  = -Wall -g3 
 
 GSL_INCL  = -I/home/r900-1/pawlik/sw/gsl/include  
 GSL_LIBS  = -L/home/r900-1/pawlik/sw/gsl/lib -lgsl -lgslcblas -lm #-lfrtbegin -lg2c
@@ -139,8 +139,8 @@ GSL_LIBS  = -L/home/r900-1/pawlik/sw/gsl/lib -lgsl -lgslcblas -lm #-lfrtbegin -l
 FFTW_INCL = -I/home/r900-1/pawlik/sw/fftw2mpich2/include
 FFTW_LIBS = -L/home/r900-1/pawlik/sw/fftw2mpich2/lib -lsrfftw_mpi -lsfftw_mpi -lsrfftw -lsfftw 
 
-MPICHINCL = -I/home/r900-1/pawlik/sw/mpich2/include 
-MPICHLIB  = -L/home/r900-1/pawlik/sw/mpich2/lib -lmpich
+MPICHINCL = 
+MPICHLIB  = 
 
 HDF5INCL  = -I/home/r900-1/pawlik/sw/hdf5/include
 HDF5LIB   = -L/home/r900-1/pawlik/sw/hdf5/lib -lhdf5
@@ -171,7 +171,9 @@ COBJS =	main.o \
 		allocate.o\
 		allvars.o \
 		begrun.o \
-		chemcool.o
+		chemcool.o \
+		iohr.o \
+		read_ichr.o
 
 FOBJS =	calc_photo.o \
 		cheminmo.o \

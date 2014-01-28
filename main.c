@@ -6,6 +6,7 @@
  * adapted from bg_init_cool.c: DriverTestCoolThermalEvolution()
  * Andreas Pawlik, UT Austin, 2010
  */
+#include "omp.h"
 #include "allvars.h"
 #include "proto.h"
 #include "f2c.h"
@@ -14,7 +15,6 @@
 #define pi 3.1415927
 #define m_H 1.6726e-24
 #define k_B 1.3806e-16
-#define Hubble 3.2407789e-18
 #define G 6.672e-8
 #define X 0.76
 #define yr 3.1536e7
@@ -24,8 +24,6 @@
 
 int load_data();
 int N_part;
-
-double Time, zred, Hparam;
 int ThisTask, NTask;
 
 int main(int argc, char **argv)
@@ -36,7 +34,7 @@ int main(int argc, char **argv)
     char buf[500];
     char buf2[500]; 
     int  n, i, nsp, ipar[NIPAR];
-    double mu, h2frac, u, density, n_tot, n_H;
+    double mu, h2frac, u, density, n_H;
     double energy, temp, divv, dl, dtcool;
     double rpar[NRPAR], y[NSPEC], ydot[NSPEC];
     double abundances[TRAC_NUM];
@@ -44,6 +42,7 @@ int main(int argc, char **argv)
 
     NTask = 1;
     read_parameter_file("params.txt");
+    allocate_commbuffers();
     set_units();
 
     COOLR.phi_pah = 1.0;
@@ -58,7 +57,8 @@ int main(int argc, char **argv)
 
     n = 1900;
     printf("reading snapshot %d...\n", n);
-    N_gas=load_data();
+    read_ic("/scratch/cerberus/d4/jhummel/stampede/vanilla/snapshot_1900");
+    //N_gas = load_data();
     printf("processing %d...\n", n);
     nsp = NSPEC;
     t_start = -1.; /* Nothing in rate_eq depends on t_start, so it doesn't
@@ -66,56 +66,53 @@ int main(int argc, char **argv)
 
 
     CoolTime=fopen("./CoolTime","w");
+#pragma omp parallel for private(n,i,y,density,h2frac,mu,u,temp,energy, \
+				 n_H,dl,divv,rpar,ipar,ydot,dtcool)
     for(n = 0; n < N_gas; n++)
       {
-	printf("loaded: entropy=%g density=%g smoothing=%g\n", 
-	       SphP[n].Entropy, SphP[n].Density, SphP[n].Hsml);
-
-	for (i=0; i<TRAC_NUM; i++)
+	if(P[n].Mass < 2e-12)
 	  {
-	    y[i] = SphP[n].TracAbund[i];
+	    for (i=0; i<TRAC_NUM; i++)
+	      {
+		y[i] = SphP[n].TracAbund[i];
+	      }
+	    density = SphP[n].Density * unit_mass / pow(unit_length, 3.0) 
+	      * pow(All.HubbleParam, 2.0) / pow(All.Time, 3.0);
+	    
+	    h2frac = y[IH2] * 2.0;
+	    mu = 1.0 / ((0.24/4.0) + ((1.0-h2frac)*0.76) + (h2frac*.76/2.0));
+	    u  = SphP[n].Entropy * pow(SphP[n].Density, SphP[n].Gamma) / (SphP[n].Gamma - 1.0);
+	    u = u * unit_energy / unit_mass; /* convert internal energy to cgs units */
+	    temp = mu * m_H / k_B * (SphP[n].Gamma-1.0) * u;
+
+	    energy = density * u;
+	    y[ITMP] = energy;
+	    
+	    n_H = density * X/m_H;
+	    dl = SphP[n].Hsml * unit_length;
+	    divv = 0.0;
+	    rpar[0] = n_H; // hydrogen number density
+	    rpar[1] = dl; // smoothing length
+	    rpar[2] = divv; // divergence ofthe velocity field
+	    ipar[0] = 0; // ???
+	    
+	    RATE_EQ(&nsp, &t_start, y, ydot, rpar, ipar);
+	    
+	    if (ydot[ITMP] == 0.0) {
+	      /* Cooling time is formally infinite. Since we can't return infinity,
+		 however, we make do with a very big number: 10^20 seconds. */
+	      dtcool = 1e20;
+	    }
+	    else {
+	      /* We assume that the energy is non-zero */
+	      dtcool = y[ITMP] / ydot[ITMP];
+	    }
+	    if(dtcool < 0) 
+	      dtcool *= -1; /* make sure timestep is not negative */
+	    
+	    fprintf(CoolTime,"%15.11g %8d %15.6g %15.11g %15.11g\n", 
+		    All.Time, P[n].ID, n_H, temp, dtcool);
 	  }
-
-	density = SphP[n].Density*unit_mass/pow(unit_length,3.0)*pow(Hparam,2.0)/pow(Time,3.0);
-	mu = 1.0 / ((0.24/4.0) + ((1.0-h2frac)*0.76) + (h2frac*.76/2.0));
-	u  = SphP[n].Entropy * pow(SphP[n].Density, SphP[n].Gamma) / (SphP[n].Gamma - 1.0);
-	u = u * unit_energy / unit_mass; /* convert internal energy to cgs units */
-
-	n_H = density * X/m_H;
-	h2frac = y[IH2] * 2.0;
-	n_tot = n_H * mu;
-	temp = mu * m_H / k_B * (SphP[n].Gamma-1.0) * u;
-	printf("n=%d n_H=%g, n_tot=%g density=%g, temp=%g\n   specific internal energy=%g\n",
-	       n, n_H, n_tot, density, temp, u, h2frac, y[IHP], y[IDP]);
-	printf("%g %g\n", y[IHP], y[IH2]);
-
-	energy = density * u;
-	divv = 0.0;
-	dl = SphP[n].Hsml * unit_length;
-	rpar[0] = n_H; // hydrogen number density
-	rpar[1] = dl; // smoothing length
-	rpar[2] = divv; // divergence ofthe velocity field
-	ipar[0] = 0; // ???
-
-	y[ITMP] = energy;
-	RATE_EQ(&nsp, &t_start, y, ydot, rpar, ipar);
-
-	if (ydot[ITMP] == 0.0) {
-	  /* Cooling time is formally infinite. Since we can't return infinity,
-	     however, we make do with a very big number: 10^20 seconds. */
-	  dtcool = 1e20;
-	}
-	else {
-	  /* We assume that the energy is non-zero */
-	  dtcool = y[ITMP] / ydot[ITMP];
-	  printf("energy: %g erg  edot: %g\n", y[ITMP], ydot[ITMP]);
-	}
-	if(dtcool < 0) 
-	  dtcool *= -1; /* make sure timestep is not negative */
-	printf("dtcool: %g\n\n", dtcool);
-	
-	fprintf(CoolTime,"%15.11g %8d %15.6g %15.11g %15.11g\n", 
-		All.Time, P[n].ID, n_H, temp, dtcool);
       }
     
     fclose(CoolTime);
@@ -196,9 +193,17 @@ int load_data(void)
   SphP[3].TracAbund[4] = 1.35279413e-088;
   SphP[3].TracAbund[5] = 8.74635849e-268;
 
-  All.Time = Time = 0.038405460020081036;
-  zred= 25.037964379989997;
-  Hparam = 0.69999999999999996;
+  All.Time = 0.038405460020081036;
+  All.HubbleParam = 0.7;
   return(4);
   }
 
+/*! returns the maximum of two double
+ */
+double dmax(double x, double y)
+{
+  if(x > y)
+    return x;
+  else
+    return y;
+}

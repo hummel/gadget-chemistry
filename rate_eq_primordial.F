@@ -154,12 +154,6 @@ c [NB We ignore corrections to yntot & gamma arising from low abundance
 c     molecular species (e.g. H-, H2+), lithium, deuterium and metals]
 c
       temp = (gamma - 1d0) * energy / (yntot * kboltz)
-
-      print*, 'gamma:', gamma
-      print*, 'n_H', yn
-      print*, 'n_tot', yntot
-      print*, 'energy [erg / cm^3]:', energy
-      print*, 'Temperature [K]:', temp
 c
 c Bounds checking
 c
