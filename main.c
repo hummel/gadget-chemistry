@@ -66,8 +66,8 @@ int main(int argc, char **argv)
 
 
     CoolTime=fopen("./CoolTime","w");
-#pragma omp parallel for private(n,i,y,density,h2frac,mu,u,temp,energy, \
-				 n_H,dl,divv,rpar,ipar,ydot,dtcool)
+    //#pragma omp parallel for private(n,i,y,density,h2frac,mu,u,temp,energy, \
+    //			     n_H,dl,divv,rpar,ipar,ydot,dtcool)
     for(n = 0; n < N_gas; n++)
       {
 	if(P[n].Mass < 2e-12)
@@ -78,19 +78,27 @@ int main(int argc, char **argv)
 	      }
 	    density = SphP[n].Density * unit_mass / pow(unit_length, 3.0) 
 	      * pow(All.HubbleParam, 2.0) / pow(All.Time, 3.0);
-	    
-	    h2frac = y[IH2] * 2.0;
-	    mu = 1.0 / ((0.24/4.0) + ((1.0-h2frac)*0.76) + (h2frac*.76/2.0));
-	    u  = SphP[n].Entropy * pow(SphP[n].Density, SphP[n].Gamma) / (SphP[n].Gamma - 1.0);
+	    /*
+	       The value stored on the disk is particle internal energy, not entropy.
+	       This is updated by Gadget eventually, but we're not letting it get that far here.
+	       In the event that SphP[n].Entropy ACTUALLY contains the entropy, this should be:
+	       u  = SphP[n].Entropy * pow(SphP[n].Density, SphP[n].Gamma) / (SphP[n].Gamma - 1.0);
+	    */
+	    u = SphP[n].Entropy;
 	    u = u * unit_energy / unit_mass; /* convert internal energy to cgs units */
-	    temp = mu * m_H / k_B * (SphP[n].Gamma-1.0) * u;
-
-	    energy = density * u;
+	    energy = density * u; /* Convert from mass specific energy to volume specific energy. */
 	    y[ITMP] = energy;
 	    
 	    n_H = density * X/m_H;
 	    dl = SphP[n].Hsml * unit_length;
 	    divv = 0.0;
+
+	    h2frac = y[IH2] * 2.0;
+	    mu = 1.0 / ((0.24/4.0) + ((1.0-h2frac)*0.76) + (h2frac*.76/2.0));
+	    temp = mu * m_H / k_B * (SphP[n].Gamma-1.0) * u;
+	    //printf("n=%d n_H=%g density=%g, temp=%g internal energy=%g\n",
+	    //n, n_H, density, temp, u, h2frac);
+
 	    rpar[0] = n_H; // hydrogen number density
 	    rpar[1] = dl; // smoothing length
 	    rpar[2] = divv; // divergence ofthe velocity field
@@ -98,15 +106,17 @@ int main(int argc, char **argv)
 	    
 	    RATE_EQ(&nsp, &t_start, y, ydot, rpar, ipar);
 	    
-	    if (ydot[ITMP] == 0.0) {
-	      /* Cooling time is formally infinite. Since we can't return infinity,
-		 however, we make do with a very big number: 10^20 seconds. */
-	      dtcool = 1e20;
-	    }
-	    else {
-	      /* We assume that the energy is non-zero */
-	      dtcool = y[ITMP] / ydot[ITMP];
-	    }
+	    if (ydot[ITMP] == 0.0)
+	      {
+		/* Cooling time is formally infinite. Since we can't return infinity,
+		   however, we make do with a very big number: 10^20 seconds. */
+		dtcool = 1e20;
+	      }
+	    else
+	      {
+		/* We assume that the energy is non-zero */
+		dtcool = y[ITMP] / ydot[ITMP];
+	      }
 	    if(dtcool < 0) 
 	      dtcool *= -1; /* make sure timestep is not negative */
 	    
