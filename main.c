@@ -66,8 +66,8 @@ int main(int argc, char **argv)
 
 
     CoolTime=fopen("./CoolTime","w");
-    //#pragma omp parallel for private(n,i,y,density,h2frac,mu,u,temp,energy, \
-    //			     n_H,dl,divv,rpar,ipar,ydot,dtcool)
+    #pragma omp parallel for private(n,i,y,density,h2frac,mu,u,temp,energy, \
+				     n_H,dl,divv,rpar,ipar,ydot,dtcool)
     for(n = 0; n < N_gas; n++)
       {
 	if(P[n].Mass < 2e-12)
