@@ -28,136 +28,142 @@ int ThisTask, NTask;
 
 int main(int argc, char **argv)
 {
-    FILE *CoolTime;
-    char dir[500];
-    char dir2[500];
-    char buf[500];
-    char buf2[500]; 
-    int  n, i, nsp, snapshot, ipar[NIPAR];
-    double mu, h2frac, u, density, n_H;
-    double energy, temp, divv, dl, dtcool;
-    double rpar[NRPAR], y[NSPEC], ydot[NSPEC];
-    double abundances[TRAC_NUM];
-    double t_start;
-
-    if(argc < 2)
-      {
-	printf("Parameters are missing.\n");
-	printf("Call with <ParameterFile> [<SnapshotNumber>]\n");
-	exit(0);
-      }
-
-    strcpy(ParameterFile, argv[1]);
-
-    if(argc >= 3)
-      snapshot = atoi(argv[2]);
-    else
-      {
-	printf("Parameters are missing.\n");
-	printf("Call with <ParameterFile> [<SnapshotNumber>]\n");
-	exit(0);
-      }
-
-
-    NTask = 1;
-    read_parameter_file(ParameterFile);
-    allocate_commbuffers();
-    set_units();
-
-    COOLR.phi_pah = 1.0;
-    COOLI.iflag_ad = 3;
-    COOLI.iflag_mn = 4;
-    COOLI.iflag_3bh2a = 1;
-    COOLI.iflag_3bh2b = 1;
-    COOLI.iflag_h3pra = 1;
-
-    /* Initialize Cooling Functions */
-    chemcool_init();
-
-    sprintf(buf, "%s/snapshot_%03d", All.InitCondFile, snapshot);
-    read_ic(buf);
-    //N_gas = load_data();
-    printf("processing...\n");
-    nsp = NSPEC;
-    t_start = -1.; /* Nothing in rate_eq depends on t_start, so it doesn't
-		      matter what value we give it */
-
+  FILE *CoolTime, *HeatTime;
+  char buf[500];
+  int  n, i, nsp, snapshot, ipar[NIPAR];
+  double mu, h2frac, u, density, n_H;
+  double energy, temp, divv, dl, dtcool;
+  double rpar[NRPAR], y[NSPEC], ydot[NSPEC];
+  double abundances[TRAC_NUM];
+  double t_start;
+  
+  if(argc < 2)
+    {
+      printf("Parameters are missing.\n");
+      printf("Call with <ParameterFile> [<SnapshotNumber>]\n");
+      exit(0);
+    }
+  
+  strcpy(ParameterFile, argv[1]);
+  
+  if(argc >= 3)
+    snapshot = atoi(argv[2]);
+  else
+    {
+      printf("Parameters are missing.\n");
+      printf("Call with <ParameterFile> [<SnapshotNumber>]\n");
+      exit(0);
+    }
+  
+  
+  NTask = 1;
+  read_parameter_file(ParameterFile);
+  allocate_commbuffers();
+  set_units();
+  
+  COOLR.phi_pah = 1.0;
+  COOLI.iflag_ad = 3;
+  COOLI.iflag_mn = 4;
+  COOLI.iflag_3bh2a = 1;
+  COOLI.iflag_3bh2b = 1;
+  COOLI.iflag_h3pra = 1;
+  
+  /* Initialize Cooling Functions */
+  chemcool_init();
+  
+  sprintf(buf, "%s/snapshot_%03d", All.InitCondFile, snapshot);
+  read_ic(buf);
+  //N_gas = load_data();
+  printf("processing...\n");
+  nsp = NSPEC;
+  t_start = -1.; /* Nothing in rate_eq depends on t_start, so it doesn't
+		    matter what value we give it */
+  
 #ifdef JH_HEATING
-    initialize_heat_ion_rates();
-
-    for(i=0; i<=6; i++)
-      {
-	COOLR.heat_ion[i] = All.heat_ion[i];
-      }
+  initialize_heat_ion_rates();
+  
+  for(i=0; i<=6; i++)
+    {
+      COOLR.heat_ion[i] = All.heat_ion[i];
+    }
 #endif
-
-    sprintf(buf, "%s%s_%04d.dat", All.OutputDir, All.SnapshotFileBase, snapshot);
-    CoolTime=fopen(buf,"w");
-    #pragma omp parallel for private(n,i,y,density,h2frac,mu,u,temp,energy, \
-				     n_H,dl,divv,rpar,ipar,ydot,dtcool)
-    for(n = 0; n < N_gas; n++)
-      {
-	if(P[n].Mass < 2e-12)
-	  {
-	    for (i=0; i<TRAC_NUM; i++)
-	      {
-		y[i] = SphP[n].TracAbund[i];
-	      }
-	    density = SphP[n].Density * unit_mass / pow(unit_length, 3.0) 
-	      * pow(All.HubbleParam, 2.0) / pow(All.Time, 3.0);
-	    /*
-	       The value stored on the disk is particle internal energy, not entropy.
-	       This is updated by Gadget eventually, but we're not letting it get that far here.
-	       In the event that SphP[n].Entropy ACTUALLY contains the entropy, this should be:
-	       u  = SphP[n].Entropy * pow(SphP[n].Density, SphP[n].Gamma) / (SphP[n].Gamma - 1.0);
-	    */
-	    u = SphP[n].Entropy;
-	    u = u * unit_energy / unit_mass; /* convert internal energy to cgs units */
-	    energy = density * u; /* Convert from mass specific energy to volume specific energy. */
-	    y[ITMP] = energy;
-	    
-	    n_H = density * X/m_H;
-	    dl = SphP[n].Hsml * unit_length;
-	    divv = 0.0;
-
-	    h2frac = y[IH2] * 2.0;
-	    mu = 1.0 / ((0.24/4.0) + ((1.0-h2frac)*0.76) + (h2frac*.76/2.0));
-	    temp = mu * m_H / k_B * (SphP[n].Gamma-1.0) * u;
-	    //printf("n=%d n_H=%g density=%g, temp=%g internal energy=%g\n",
-	    //n, n_H, density, temp, u, h2frac);
-
-	    rpar[0] = n_H; // hydrogen number density
-	    rpar[1] = dl; // smoothing length
-	    rpar[2] = divv; // divergence ofthe velocity field
-	    ipar[0] = 0; // ???
-	    
-	    RATE_EQ(&nsp, &t_start, y, ydot, rpar, ipar);
-	    
-	    if (ydot[ITMP] == 0.0)
-	      {
-		/* Cooling time is formally infinite. Since we can't return infinity,
-		   however, we make do with a very big number: 10^20 seconds. */
-		dtcool = 1e20;
-	      }
-	    else
-	      {
-		/* We assume that the energy is non-zero */
-		dtcool = y[ITMP] / ydot[ITMP];
-	      }
-	    if(dtcool < 0) 
+  
+  sprintf(buf, "%s%s_%04d.dat", All.OutputDir, All.SnapshotFileBase, snapshot);
+  CoolTime=fopen(buf,"w");
+  sprintf(buf, "%sheattime_%04d.dat", All.OutputDir, snapshot);
+  HeatTime=fopen(buf,"w");
+#pragma omp parallel for private(n,i,y,density,h2frac,mu,u,temp,energy, \
+				 n_H,dl,divv,rpar,ipar,ydot,dtcool)
+  for(n = 0; n < N_gas; n++)
+    {
+      if(P[n].Mass < 2e-12)
+	{
+	  for (i=0; i<TRAC_NUM; i++)
+	    {
+	      y[i] = SphP[n].TracAbund[i];
+	    }
+	  density = SphP[n].Density * unit_mass / pow(unit_length, 3.0) 
+	    * pow(All.HubbleParam, 2.0) / pow(All.Time, 3.0);
+	  /*
+	    The value stored on the disk is particle internal energy, not entropy.
+	    This is updated by Gadget eventually, but we're not letting it get that far here.
+	    In the event that SphP[n].Entropy ACTUALLY contains the entropy, this should be:
+	    u  = SphP[n].Entropy * pow(SphP[n].Density, SphP[n].Gamma) / (SphP[n].Gamma - 1.0);
+	  */
+	  u = SphP[n].Entropy;
+	  u = u * unit_energy / unit_mass; /* convert internal energy to cgs units */
+	  energy = density * u; /* Convert from mass specific energy to volume specific energy. */
+	  y[ITMP] = energy;
+	  
+	  n_H = density * X/m_H;
+	  dl = SphP[n].Hsml * unit_length;
+	  divv = 0.0;
+	  
+	  h2frac = y[IH2] * 2.0;
+	  mu = 1.0 / ((0.24/4.0) + ((1.0-h2frac)*0.76) + (h2frac*.76/2.0));
+	  temp = mu * m_H / k_B * (SphP[n].Gamma-1.0) * u;
+	  //printf("n=%d n_H=%g density=%g, temp=%g internal energy=%g\n",
+	  //n, n_H, density, temp, u, h2frac);
+	  
+	  rpar[0] = n_H; // hydrogen number density
+	  rpar[1] = dl; // smoothing length
+	  rpar[2] = divv; // divergence ofthe velocity field
+	  ipar[0] = 0; // ???
+	  
+	  RATE_EQ(&nsp, &t_start, y, ydot, rpar, ipar);
+	  
+	  if (ydot[ITMP] == 0.0)
+	    {
+	      /* Cooling time is formally infinite. Since we can't return infinity,
+		 however, we make do with a very big number: 10^20 seconds. */
+	      dtcool = 1e20;
+	    }
+	  else
+	    {
+	      /* We assume that the energy is non-zero */
+	      dtcool = y[ITMP] / ydot[ITMP];
+	    }
+	  if(dtcool < 0) 
+	    {
 	      dtcool *= -1; /* make sure timestep is not negative */
-	    
-	    fprintf(CoolTime,"%15.11g %8d %15.6g %15.11g %15.11g\n", 
-		    All.Time, P[n].ID, n_H, temp, dtcool);
-	  }
-      }
-    
-    fclose(CoolTime);
-    free(P);
-    free(SphP);
-    
-    printf("done!\n");
-    return 0;
+	      fprintf(CoolTime,"%15.11g %8d %15.6g %15.11g %15.11g\n", 
+		      All.Time, P[n].ID, n_H, temp, dtcool);
+	    }
+	  else
+	    {
+	      fprintf(HeatTime,"%15.11g %8d %15.6g %15.11g %15.11g\n", 
+		      All.Time, P[n].ID, n_H, temp, dtcool);
+	    }
+	}
+    }
+  
+  fclose(CoolTime);
+  fclose(HeatTime);
+  free(P);
+  free(SphP);
+  
+  printf("done!\n");
+  return 0;
 }
 
 int load_data(void)
