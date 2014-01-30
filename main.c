@@ -33,15 +33,34 @@ int main(int argc, char **argv)
     char dir2[500];
     char buf[500];
     char buf2[500]; 
-    int  n, i, nsp, ipar[NIPAR];
+    int  n, i, nsp, snapshot, ipar[NIPAR];
     double mu, h2frac, u, density, n_H;
     double energy, temp, divv, dl, dtcool;
     double rpar[NRPAR], y[NSPEC], ydot[NSPEC];
     double abundances[TRAC_NUM];
     double t_start;
 
+    if(argc < 2)
+      {
+	printf("Parameters are missing.\n");
+	printf("Call with <ParameterFile> [<SnapshotNumber>]\n");
+	exit(0);
+      }
+
+    strcpy(ParameterFile, argv[1]);
+
+    if(argc >= 3)
+      snapshot = atoi(argv[2]);
+    else
+      {
+	printf("Parameters are missing.\n");
+	printf("Call with <ParameterFile> [<SnapshotNumber>]\n");
+	exit(0);
+      }
+
+
     NTask = 1;
-    read_parameter_file("params.txt");
+    read_parameter_file(ParameterFile);
     allocate_commbuffers();
     set_units();
 
@@ -55,17 +74,26 @@ int main(int argc, char **argv)
     /* Initialize Cooling Functions */
     chemcool_init();
 
-    n = 1900;
-    printf("reading snapshot %d...\n", n);
-    read_ic("/scratch/cerberus/d4/jhummel/stampede/vanilla/snapshot_1900");
+#ifdef JH_HEATING
+    initialize_heat_ion_rates();
+
+    for(i=0; i<=6; i++)
+      {
+	COOLR.heat_ion[i] = All.heat_ion[i];
+      }
+#endif
+
+
+    sprintf(buf, "%s/snapshot_%03d", All.InitCondFile, snapshot);
+    read_ic(buf);
     //N_gas = load_data();
-    printf("processing %d...\n", n);
+    printf("processing...\n");
     nsp = NSPEC;
     t_start = -1.; /* Nothing in rate_eq depends on t_start, so it doesn't
 		      matter what value we give it */
 
-
-    CoolTime=fopen("./CoolTime","w");
+    sprintf(buf, "%s%s_%04d.dat", All.OutputDir, All.SnapshotFileBase, snapshot);
+    CoolTime=fopen(buf,"w");
     #pragma omp parallel for private(n,i,y,density,h2frac,mu,u,temp,energy, \
 				     n_H,dl,divv,rpar,ipar,ydot,dtcool)
     for(n = 0; n < N_gas; n++)

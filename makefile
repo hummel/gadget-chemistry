@@ -86,9 +86,9 @@ OPT   += -DCHEMISTRYNETWORK=1
 #--------------------------------------- Sink Particles
 OPT += -DSINKVAL
 #--------------------------------------- Ionizing Background
-#OPT += -DJH_HEATING
-#OPT += -DJH_VARIABLE_HEATING
-#OPT += -DJH_SECONDARY_IONIZATION
+OPT += -DJH_HEATING
+OPT += -DJH_VARIABLE_HEATING
+OPT += -DJH_SECONDARY_IONIZATION
 
 #----------------------------------------------------------------------
 # Here, select compile environment for the target machine. This may need 
@@ -172,6 +172,7 @@ COBJS =	main.o \
 		allvars.o \
 		begrun.o \
 		chemcool.o \
+		heat_ion_rates.o \
 		iohr.o \
 		read_ichr.o
 
