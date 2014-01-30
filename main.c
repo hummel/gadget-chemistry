@@ -74,6 +74,14 @@ int main(int argc, char **argv)
     /* Initialize Cooling Functions */
     chemcool_init();
 
+    sprintf(buf, "%s/snapshot_%03d", All.InitCondFile, snapshot);
+    read_ic(buf);
+    //N_gas = load_data();
+    printf("processing...\n");
+    nsp = NSPEC;
+    t_start = -1.; /* Nothing in rate_eq depends on t_start, so it doesn't
+		      matter what value we give it */
+
 #ifdef JH_HEATING
     initialize_heat_ion_rates();
 
@@ -82,15 +90,6 @@ int main(int argc, char **argv)
 	COOLR.heat_ion[i] = All.heat_ion[i];
       }
 #endif
-
-
-    sprintf(buf, "%s/snapshot_%03d", All.InitCondFile, snapshot);
-    read_ic(buf);
-    //N_gas = load_data();
-    printf("processing...\n");
-    nsp = NSPEC;
-    t_start = -1.; /* Nothing in rate_eq depends on t_start, so it doesn't
-		      matter what value we give it */
 
     sprintf(buf, "%s%s_%04d.dat", All.OutputDir, All.SnapshotFileBase, snapshot);
     CoolTime=fopen(buf,"w");
