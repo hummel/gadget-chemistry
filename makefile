@@ -165,7 +165,7 @@ endif
 
 OPTIONS = $(OPTIMIZE) $(OPT)
 
-EXEC   = cooling
+EXEC   = cooltime
 
 COBJS =	main.o \
 		allocate.o\
