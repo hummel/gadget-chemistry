@@ -100,18 +100,18 @@ OPT += -DJH_SECONDARY_IONIZATION
 # Select here the target architecture
 #============================================================================
 
-#SYSTYPE="ranger"
+SYSTYPE="stampede"
 #SYSTYPE="lonestar"
-SYSTYPE="r900"
+#SYSTYPE="r900"
 #SYSTYPE="cauthon"
 
 #============================================================================
 # Specific compilation flags
 #============================================================================
 
-ifeq ($(SYSTYPE),"ranger")
-CC = mpicc -c
-FC = mpif90 -nofor-main
+ifeq ($(SYSTYPE),"stampede")
+CC = gcc -fopenmp
+FC = gfortran -fopenmp
 OPTIMIZE = -O3 -g #-Wall
 
 GSL_INCL = -I${TACC_GSL_INC} -I${TACC_GSL_INC}/gsl
@@ -121,7 +121,7 @@ FFTW_INCL = -I$(TACC_FFTW2_INC)
 FFTW_LIBS = -L$(TACC_FFTW2_LIB)
 #FFTW_LIBS = -L${TACC_FFTW2_LIB} -lfftw
 
-MPICHLIB = -lmpich
+MPICHLIB = 
 
 HDF5INCL = -I$(TACC_HDF5_INC)
 HDF5LIB = -L$(TACC_HDF5_LIB) -lhdf5
