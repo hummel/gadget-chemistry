@@ -40,7 +40,7 @@ OPT   +=  -DNOSTOP_WHEN_BELOW_MINTIMESTEP
 
 #--------------------------------------- Output 
 OPT   +=  -DHAVE_HDF5
-Opt   +=  -DUSE_16_API
+OPT   +=  -DH5_USE_16_API
 #OPT   +=  -DOUTPUTPOTENTIAL
 #OPT   +=  -DOUTPUTACCELERATION
 #OPT   +=  -DOUTPUTCHANGEOFENTROPY
