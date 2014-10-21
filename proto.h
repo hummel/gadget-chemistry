@@ -264,12 +264,18 @@ double alpha_calc(int numtot);
 void ghost(void);
 #endif
 
-#ifdef JH_HEATING
+#ifdef XRAY_BACKGROUND
 void initialize_heat_ion_rates(void);
 void calculate_heat_ion_rates(int rad_type, double J_0);
-#ifdef JH_VARIABLE_HEATING
+#ifdef XRAY_VARIABLE_HEATING
 int    read_xrbIntensity(char *fname);
-#endif /* JH_VARIABLE_HEATING */
-#endif /* JH_HEATING */
+#endif /* XRAY_VARIABLE_HEATING */
+#endif /* XRAY_BACKGROUND */
 
-
+#ifdef COSMIC_RAY_BACKGROUND
+void initialize_cosmic_ray_background(void);
+void cosmic_ray_heat_ion_rates(void);
+#ifdef CR_VARIABLE_HEATING
+int    read_crbIntensity(char *fname);
+#endif /* CR_VARIABLE_HEATING */
+#endif /* COSMIC_RAY_BACKGROUND */

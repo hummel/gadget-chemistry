@@ -261,7 +261,7 @@ extern FILE *FdCPU;        /*!< file handle for cpu.txt log-file. */
 /*Sink*/
 extern FILE *FdSink;        /*!< file handle for sink.txt log-file. */
 
-#ifdef JH_HEATING
+#if defined(XRAY_BACKGROUND) || defined(COSMIC_RAY_BACKGROUND)
 extern FILE *FdHeat;  /*!< file handle for heating.dat log-file. */
 #endif
 
@@ -545,15 +545,20 @@ extern struct global_data_all_processes
   char TimingsFile[MAXLEN_FILENAME];           /*!< name of file with performance metrics of gravitational tree algorithm */
   char RestartFile[MAXLEN_FILENAME];           /*!< basename of restart-files */
   /*SINK*/
-#ifdef JH_HEATING
-  char HeatFile[MAXLEN_FILENAME];               /*!< name of file with heating info */
-#ifdef JH_VARIABLE_HEATING
-  char xrbFile[MAXLEN_FILENAME];               /*!< name of file with Xray background intensity info */
-#endif /* JH_VARIABLE_HEATING */
-#endif /* JH_HEATING */
   char SinkFile[MAXLEN_FILENAME];               /*!< name of file with sink statistics */
   char ResubmitCommand[MAXLEN_FILENAME];       /*!< name of script-file that will be executed for automatic restart */
   char OutputListFilename[MAXLEN_FILENAME];    /*!< name of file with list of desired output times */
+
+#if defined(XRAY_BACKGROUND) || defined(COSMIC_RAY_BACKGROUND)
+  char HeatFile[MAXLEN_FILENAME];               /*!< name of file with heating info */
+#ifdef XRAY_VARIABLE_HEATING
+  char xrbFile[MAXLEN_FILENAME];               /*!< name of file with Xray background intensity info */
+#endif /* XRAY_VARIABLE_HEATING */
+#ifdef CR_VARIABLE_HEATING
+  char crbFile[MAXLEN_FILENAME];               /*!< name of file with Cosmic Ray background intensity info */
+#endif /* CR_VARIABLE_HEATING */
+#endif /* XRAY_BACKGROUND || COSMIC_RAY_BACKGROUND */
+
 
   double OutputListTimes[MAXLEN_OUTPUTLIST];   /*!< table with desired output times */
   int OutputListLength;                        /*!< number of output times stored in the table of desired output times */
@@ -577,15 +582,31 @@ extern struct global_data_all_processes
   FLOAT EOSEnergy[MAX_SIZE_EOS_TABLE];
 #endif
 
+#if defined(XRAY_BACKGROUND) || defined(COSMIC_RAY_BACKGROUND)
+#define MAXLEN_HEATLIST      5000   /*!< maxmimum number of entries in background radiation file */
+#endif
+
    /* X-ray background intensity */
-#ifdef JH_HEATING
+#ifdef XRAY_BACKGROUND
   double xrbIntensity;
-#ifdef JH_VARIABLE_HEATING
-#define MAXLEN_XRBLIST      5000   /*!< maxmimum number of entries in X-ray background intensity file */
-  double Jz[MAXLEN_XRBLIST], Jxr[MAXLEN_XRBLIST];
+#ifdef XRAY_VARIABLE_HEATING
+  double Jz[MAXLEN_HEATLIST], Jxr[MAXLEN_HEATLIST];
   int xrbLength;
-#endif /* JH_VARIABLE_HEATING */
-#endif /* JH_HEATING */
+#endif /* XRAY_VARIABLE_HEATING */
+#endif /* XRAY_BACKGROUND */
+
+   /* Cosmic ray background intensity */
+#ifdef  COSMIC_RAY_BACKGROUND
+  double crbIntensity;
+  double CR_heat;
+  double CR_spectrum_min;
+  double CR_spectrum_max;
+  double CR_base_integral;
+#ifdef CR_VARIABLE_HEATING
+  double U_CRz[MAXLEN_HEATLIST], U_CR[MAXLEN_HEATLIST];
+  int crbLength;
+#endif /* CR_VARIABLE_HEATING */
+#endif /* COSMIC_RAY_BACKGROUND */
 
    /* SINK: add variables for sink particles */
 

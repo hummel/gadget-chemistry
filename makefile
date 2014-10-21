@@ -85,10 +85,13 @@ OPT   += -DCHEMISTRYNETWORK=1
 #OPT   += -DMETALS_TG
 #--------------------------------------- Sink Particles
 OPT += -DSINKVAL
-#--------------------------------------- Ionizing Background
-OPT += -DJH_HEATING
-OPT += -DJH_VARIABLE_HEATING
-OPT += -DJH_SECONDARY_IONIZATION
+#--------------------------------------- X-ray Ionizing Background
+OPT += -DXRAY_BACKGROUND
+OPT += -DXRAY_VARIABLE_HEATING
+OPT += -DXRAY_SECONDARY_IONIZATION
+#--------------------------------------- Cosmic Ray Ionizing Background
+#OPT += -DCOSMIC_RAY_BACKGROUND
+#OPT += -DCR_VARIABLE_HEATING
 
 #----------------------------------------------------------------------
 # Here, select compile environment for the target machine. This may need 
