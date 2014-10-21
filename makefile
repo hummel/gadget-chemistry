@@ -100,9 +100,9 @@ OPT += -DJH_SECONDARY_IONIZATION
 # Select here the target architecture
 #============================================================================
 
-SYSTYPE="stampede"
+#SYSTYPE="stampede"
 #SYSTYPE="lonestar"
-#SYSTYPE="r900"
+SYSTYPE="r900"
 #SYSTYPE="cauthon"
 
 #============================================================================
